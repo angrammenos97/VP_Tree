@@ -1,1 +1,2 @@
-# VP_Tree
+# VP_Tree Exercise
+Parallel &amp; Distributed Computer Systems Exercise 1
