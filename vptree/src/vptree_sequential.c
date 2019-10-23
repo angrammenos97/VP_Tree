@@ -15,7 +15,7 @@ double *distance_from_last(double *X, int n, int dim)
 	for (int i = 0; i < n - 1; i++) {
 		for (int j = 0; j < dim; j++)
 			*(d + i) += pow(*(X + i * dim + j) - *(X + (n - 1) * dim + j), 2);
-		//*(d + i) = sqrt(*(d + i));
+		*(d + i) = sqrt(*(d + i));
 	}
 	return d;
 }
