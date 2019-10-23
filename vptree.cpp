@@ -1,10 +1,12 @@
+#include "pch.h"
+
 #include "vptree.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
 
-// helping functions
+/////////////////////////////////
 double *distance_from_last(double *X, int n, int dim)
 {
 	if (n == 1)
@@ -15,7 +17,7 @@ double *distance_from_last(double *X, int n, int dim)
 	for (int i = 0; i < n - 1; i++) {
 		for (int j = 0; j < dim; j++)
 			*(d + i) += pow(*(X + i * dim + j) - *(X + (n - 1) * dim + j), 2);
-		//*(d + i) = sqrt(*(d + i));
+		*(d + i) = sqrt(*(d + i));
 	}
 	return d;
 }
@@ -81,7 +83,7 @@ vptree *vpt(double *X, int *idx, int n, int dim)
 	}
 	return tree;
 }
-// end of helping functions
+/////////////////////////////
 
 vptree * buildvp(double *X, int nop, int d)
 {
@@ -100,7 +102,7 @@ vptree * getOuter(vptree * T)
 {
 	return T->outer;
 }
-double getMD(vptree * T)
+double getMD(vptree * T) 
 {
 	return T->md;
 }
@@ -108,7 +110,7 @@ double * getVP(vptree * T)
 {
 	return T->vp;
 }
-int getIDX(vptree * T)
+int getIDX(vptree * T) 
 {
 	return T->idx;
 }
