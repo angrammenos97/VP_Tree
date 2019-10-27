@@ -30,10 +30,10 @@ int main(int argc, char *argv[])
 			*(X + i * dim + j) = ((double)rand() / (RAND_MAX));
 	}
 	if (matlab) {
-		data = fopen("./matlab/data.m", "w");
+		data = fopen("./data.m", "w");
 		export_data(data, X);
 	}
-	// Build search tree
+	// Build search tree		
 	vptree *tree = buildvp(X, nop, dim);
 
 	if (matlab) {
@@ -103,7 +103,7 @@ void export_struct(FILE *file, vptree *root, const char *root_name, int str_size
 			fprintf(file, "%lf ", *(root->vp + j));
 		fprintf(file, "];\n");
 		fprintf(file, "%s.md = %lf;\n", root_name, root->md);
-		fprintf(file, "%s.idx = %i;\n", root_name, root->idx);
+		fprintf(file, "%s.idx = %i;\n", root_name, root->idx + 1);
 		char *tmpi = (char*)malloc((str_size + 6) * sizeof(char));
 		memcpy(tmpi, root_name, str_size - 1);
 		memcpy(tmpi + str_size - 1, ".inner", 7);
@@ -114,3 +114,4 @@ void export_struct(FILE *file, vptree *root, const char *root_name, int str_size
 		export_struct(file, root->outer, tmpo, str_size + 6);
 	}
 }
+

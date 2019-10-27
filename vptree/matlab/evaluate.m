@@ -1,6 +1,6 @@
 % search the tree
-clear;
-data;
+%clear;
+% data;
 q = rand(1,dim); % random query point (q)
 k = 3;
 tau = sqrt(2); % desired search radius
@@ -15,7 +15,7 @@ function [list, tau] = searchNb(tree, list, tau, q)
         return;
     else
         dist = sqrt( sum((tree.vp(1,:) - q(1,:)).^2,2) ); % distance q of current vp        
-        if (dist < tau) % add current vp if it is colse to q
+        if (dist < tau) % add current vp if it is close to q
             tauId = find(list(:,2) == tau); % replace the farest point of the list with the current vp
             list(tauId(1),:) = [tree.idx, dist];
             M = max(list); % store the distance of the farest point of the list
