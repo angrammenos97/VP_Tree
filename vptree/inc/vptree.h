@@ -1,14 +1,13 @@
 #ifndef VPTREE_H
 #define VPTREE_H
-
 typedef struct vptree {
 	double *vp;
 	double md;
+	double md2;
 	int idx;
 	struct vptree *inner;
 	struct vptree *outer;
 }vptree;
-
 // type definition of vptree
 // ========== LIST OF ACCESSORS
 //! Build vantage-point tree given input dataset X

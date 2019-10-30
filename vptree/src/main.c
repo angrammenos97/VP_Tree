@@ -4,7 +4,6 @@
 #include <time.h>
 #include "vptree.h"
 
-
 #define DefaultNumPoints 100000
 #define DefaultDim 2
 
@@ -100,18 +99,18 @@ void export_struct(FILE *file, vptree *root, const char *root_name, int str_size
 	else {
 		fprintf(file, "%s.vp = [", root_name);
 		for (int j = 0; j < dim; j++)
-			fprintf(file, "%lf ", *(root->vp + j));
+			fprintf(file, "%lf ", *(getVP(root) + j));
 		fprintf(file, "];\n");
-		fprintf(file, "%s.md = %lf;\n", root_name, root->md);
-		fprintf(file, "%s.idx = %i;\n", root_name, root->idx + 1);
+		fprintf(file, "%s.md = %lf;\n", root_name, getMD(root));
+		fprintf(file, "%s.idx = %i;\n", root_name, getIDX(root) + 1);
 		char *tmpi = (char*)malloc((str_size + 6) * sizeof(char));
 		memcpy(tmpi, root_name, str_size - 1);
 		memcpy(tmpi + str_size - 1, ".inner", 7);
 		char *tmpo = (char*)malloc((str_size + 6) * sizeof(char));
 		memcpy(tmpo, root_name, str_size - 1);
 		memcpy(tmpo + str_size - 1, ".outer", 7);
-		export_struct(file, root->inner, tmpi, str_size + 6);
-		export_struct(file, root->outer, tmpo, str_size + 6);
+		export_struct(file, getInner(root), tmpi, str_size + 6);
+		export_struct(file, getOuter(root), tmpo, str_size + 6);
 	}
 }
 

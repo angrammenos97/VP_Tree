@@ -1,95 +1,94 @@
 #include "vptree.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <math.h>
 
 /////////////////////////////////
-double *distance_from_last(double *X, int *idx, int n, int dim)
+double *distance_from_last(double *X, int n, int dim)
 {
 	if (n == 1)
 		exit(-1);
-
 	double *d = (double*)malloc((n - 1) * sizeof(double));
-	memset(d, 0, (n - 1) * sizeof(double));	// set hole array with zeroes
 	for (int i = 0; i < n - 1; i++) {
+		*(d + i) = 0.0;
 		for (int j = 0; j < dim; j++)
-			*(d + i) += pow(*(X + *(idx + i) * dim + j) - *(X + *(idx + n - 1) * dim + j), 2);
+			*(d + i) += pow(*(X + i * dim + j) - *(X + (n - 1) * dim + j), 2);
 		*(d + i) = sqrt(*(d + i));
 	}
 	return d;
 }
 
-double quick_select(double *v, int *idx, int len, int k)
+void SWAPX(double *X, int dim, int a, int b)
 {
-#define SWAP(a, b) { tmpd = v[a]; v[a] = v[b]; v[b] = tmpd; tmpi = idx[a]; idx[a] = idx[b]; idx[b] = tmpi;}
+	double *tempX = (double*)malloc(dim * sizeof(double));
+	for (int j = 0; j < dim; j++)
+		*(tempX + j) = *(X + a * dim + j);
+	for (int j = 0; j < dim; j++)
+		*(X + a * dim + j) = *(X + b * dim + j);
+	for (int j = 0; j < dim; j++)
+		*(X + b * dim + j) = *(tempX + j);
+}
+
+double quick_select(double *d, double *X, int *idx, int len, int k, int dim)
+{
+#define SWAP(a, b) { tmpd = d[a]; d[a] = d[b]; d[b] = tmpd; tmpi = idx[a]; idx[a] = idx[b]; idx[b] = tmpi;}
 	int i, st, tmpi;
 	double tmpd;
 	for (st = i = 0; i < len - 1; i++) {
-		if (v[i] > v[len - 1]) continue;
+		if (d[i] > d[len - 1]) continue;
 		SWAP(i, st);
+		SWAPX(X, dim, i, st);
 		st++;
 	}
 	SWAP(len - 1, st);
-	return k == st ? v[st]
-		: st > k ? quick_select(v, idx, st, k)
-		: quick_select(v + st, idx, len - st, k - st);
+	SWAPX(X, dim, len - 1, st);
+	return k == st ? d[st]
+		: st > k ? quick_select(d, X, idx, st, k, dim)
+		: quick_select(d + st, X + st * dim, idx + st, len - st, k - st, dim);
 }
 
-double median(double *d, int *idx, int n)
+double median(double *X, int *idx, int n, int dim)
 {
-	if (n == 0)
-		exit(-1);
-	else
-	{
-		if ((n % 2) == 1)
-			return quick_select(d, idx, n, n / 2);
-		else
-			return ((quick_select(d, idx, n, n / 2 - 1) + quick_select(d, idx, n, n / 2)) / 2.0);
-	}
+	if (n == 1)
+		return 0.0;
+	double *d = distance_from_last(X, n, dim);
+	return quick_select(d, X, idx, (n - 1), (n - 2) / 2, dim);
 }
 
 vptree *vpt(double *X, int *idx, int n, int dim)
 {
 	vptree *tree = (vptree*)malloc(sizeof(vptree));
-	tree->vp = (double *)malloc(1 * dim * sizeof(double));
 	if (n == 0) {
 		tree = NULL;
 		return tree;
 	}
-	else if (n == 1) {
-		tree->vp = (X + *(idx + n - 1) * dim);
-		tree->md = 0.0;
-		tree->idx = *(idx + n - 1);
-		tree->inner = NULL;
-		tree->outer = NULL;
+	tree->vp = (double *)malloc(1 * dim * sizeof(double));
+	tree->vp = (X + (n - 1) * dim);
+	tree->md = median(X, idx, n, dim);
+	tree->idx = *(idx + n - 1);
+	// split and recurse
+	if ((n - 1) % 2 == 0) {
+		tree->inner = vpt(X, idx, (n - 1) / 2, dim);
+		tree->outer = vpt((X + ((n - 1) / 2)*dim), (idx + (n - 1) / 2), (n - 1) / 2, dim);
 	}
 	else {
-		tree->vp = (X + *(idx + n - 1) * dim);
-		double *d = distance_from_last(X, idx, n, dim);
-		tree->md = median(d, idx, n - 1);
-		tree->idx = *(idx + n - 1);
-		// split and recurse	
-		if ((n - 1) % 2 == 0) {
-			tree->inner = vpt(X, idx, (n - 1) / 2, dim);
-			tree->outer = vpt(X, (idx + (n - 1) / 2), (n - 1) / 2, dim);
-		}
-		else {
-			tree->inner = vpt(X, idx, (n - 1) / 2 + 1, dim);
-			tree->outer = vpt(X, (idx + (n - 1) / 2 + 1), (n - 1) / 2, dim);
-		}
+		tree->inner = vpt(X, idx, (n - 1) / 2 + 1, dim);
+		tree->outer = vpt((X + ((n - 1) / 2 + 1)*dim), (idx + (n - 1) / 2 + 1), (n - 1) / 2, dim);
 	}
 	return tree;
 }
-/////////////////////////////
+/////////////////////////////////
 
-vptree * buildvp(double *X, int nop, int d)
+vptree * buildvp(double *X, int n, int d)
 {
-	int *idx = (int*)malloc(nop * sizeof(int));
-	for (int i = 0; i < nop; i++)
+	double *X_copy = (double*)malloc(n * d * sizeof(double));
+	int *idx = (int*)malloc(n * sizeof(int));
+	for (int i = 0; i < n; i++) {
 		*(idx + i) = i;
-
-	return vpt(X, idx, nop, d);
+		for (int j = 0; j < d; j++)
+			*(X_copy + i * d + j) = *(X + i * d + j);
+	}
+	return vpt(X_copy, idx, n, d);
 }
 
 vptree * getInner(vptree * T)
