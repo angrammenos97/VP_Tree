@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <math.h>
 
+#define SWAP(d, idx, a, b) { double tmpd = d[a]; d[a] = d[b]; d[b] = tmpd; int tmpi = idx[a]; idx[a] = idx[b]; idx[b] = tmpi;}
+
 /////////////////////////////////
 double *distance_from_last(double *X, int n, int dim)
 {
@@ -20,27 +22,24 @@ double *distance_from_last(double *X, int n, int dim)
 
 void SWAPX(double *X, int dim, int a, int b)
 {
-	double *tempX = (double*)malloc(dim * sizeof(double));
-	for (int j = 0; j < dim; j++)
-		*(tempX + j) = *(X + a * dim + j);
-	for (int j = 0; j < dim; j++)
+	double tempX;
+	for (int j = 0; j < dim; j++) {
+		tempX = *(X + a * dim + j);
 		*(X + a * dim + j) = *(X + b * dim + j);
-	for (int j = 0; j < dim; j++)
-		*(X + b * dim + j) = *(tempX + j);
+		*(X + b * dim + j) = tempX;
+	}
 }
 
 double quick_select(double *d, double *X, int *idx, int len, int k, int dim)
 {
-#define SWAP(a, b) { tmpd = d[a]; d[a] = d[b]; d[b] = tmpd; tmpi = idx[a]; idx[a] = idx[b]; idx[b] = tmpi;}
-	int i, st, tmpi;
-	double tmpd;
+	int i, st;
 	for (st = i = 0; i < len - 1; i++) {
 		if (d[i] > d[len - 1]) continue;
-		SWAP(i, st);
+		SWAP(d, idx, i, st);
 		SWAPX(X, dim, i, st);
 		st++;
 	}
-	SWAP(len - 1, st);
+	SWAP(d, idx, len - 1, st);
 	SWAPX(X, dim, len - 1, st);
 	return k == st ? d[st]
 		: st > k ? quick_select(d, X, idx, st, k, dim)
@@ -52,17 +51,16 @@ double median(double *X, int *idx, int n, int dim)
 	if (n == 1)
 		return 0.0;
 	double *d = distance_from_last(X, n, dim);
-	return quick_select(d, X, idx, (n - 1), (n - 2) / 2, dim);
+	double md = quick_select(d, X, idx, (n - 1), (n - 2) / 2, dim);
+	free(d);
+	return md;
 }
 
 vptree *vpt(double *X, int *idx, int n, int dim)
 {
+	if (n == 0)
+		return NULL;
 	vptree *tree = (vptree*)malloc(sizeof(vptree));
-	if (n == 0) {
-		tree = NULL;
-		return tree;
-	}
-	tree->vp = (double *)malloc(1 * dim * sizeof(double));
 	tree->vp = (X + (n - 1) * dim);
 	tree->md = median(X, idx, n, dim);
 	tree->idx = *(idx + n - 1);

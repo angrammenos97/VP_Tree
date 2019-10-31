@@ -32,14 +32,17 @@ int main(int argc, char *argv[])
 		data = fopen("./data.m", "w");
 		export_data(data, X);
 	}
-	// Build search tree		
+	// Build search tree
+	time_t st_time, en_time;
+	st_time = clock();
 	vptree *tree = buildvp(X, nop, dim);
+	en_time = clock();
 
 	if (matlab) {
 		export_struct(data, tree, "tree", 5);
 		fclose(data);
 	}
-	printf("DONE!\n");
+	printf("DONE in %lfseconds!\n", (double)((en_time - st_time) / CLOCKS_PER_SEC));
 	free(X);
 	return 0;
 }
