@@ -6,8 +6,9 @@
 #include <math.h>
 #include <pthread.h>
 
-#define BLOCK_SIZE 220000
+#define BLOCK_SIZE 440000
 #define MAX_THREADS 20
+#define NOP_THRESHOLD 10000
 
 typedef struct {
 	double *X, *d; int n, dim, tid, nothd;
@@ -111,7 +112,6 @@ double median(double *X, int *idx, int n, int dim)
 
 vptree *vpt_sequential(double *X, int *idx, int n, int dim)
 {
-	//printf("seqeuntial %i with %i threads\n", n, nothvtp);
 	if (n == 0)
 		return NULL;
 	vptree *tree = (vptree*)malloc(sizeof(vptree));
@@ -133,7 +133,6 @@ vptree *vpt_sequential(double *X, int *idx, int n, int dim)
 void *vpt_threaded(void *arg)
 {
 	vptargs *data = (vptargs*)arg;
-	//printf("threaded %i\n", data->n);
 	if (data->n == 0) {
 		*(data->tree) = NULL;
 		return 0;
@@ -165,8 +164,7 @@ void *vpt_threaded(void *arg)
 		vptargO.idx = (data->idx + (data->n - 1) / 2 + 1);
 		vptargO.n = (data->n - 1) / 2;
 	}
-	//int nothdlf = ((data->n / 2) * dim) / (BLOCK_SIZE * nothvtp);
-	if (nothvtp > MAX_THREADS || (data->n / 2) * data->dim < BLOCK_SIZE) {	// take this job too
+	if (nothvtp > MAX_THREADS || (data->n) < NOP_THRESHOLD) {		// continue sequential for now on
 		node->inner = vpt_sequential(vptargI.X, vptargI.idx, vptargI.n, vptargI.dim);
 		node->outer = vpt_sequential(vptargO.X, vptargO.idx, vptargO.n, vptargO.dim);
 	}
@@ -222,7 +220,6 @@ vptree * buildvp(double *X, int n, int d)
 		printf("ERROR: joining vpt thread\n");
 		exit(-1);
 	}
-	//vpt_sequential(X_copy, root, idx, n, d);
 
 	pthread_attr_destroy(&attr);
 	pthread_mutex_destroy(&nothvtp_mutex);
