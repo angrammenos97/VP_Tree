@@ -3,8 +3,6 @@
 #include <stdlib.h>
 #include <math.h>
 
-#define SWAP(d, idx, a, b) { double tmpd = d[a]; d[a] = d[b]; d[b] = tmpd; int tmpi = idx[a]; idx[a] = idx[b]; idx[b] = tmpi;}
-
 /////////////////////////////////
 double *distance_from_last(double *X, int n, int dim)
 {
@@ -20,14 +18,20 @@ double *distance_from_last(double *X, int n, int dim)
 	return d;
 }
 
-void SWAPX(double *X, int dim, int a, int b)
+void SWAP(double *X, double *d, int *idx, int dim, int a, int b)
 {
-	double tempX;
+	double tmpd;
 	for (int j = 0; j < dim; j++) {
-		tempX = *(X + a * dim + j);
+		tmpd = *(X + a * dim + j);
 		*(X + a * dim + j) = *(X + b * dim + j);
-		*(X + b * dim + j) = tempX;
+		*(X + b * dim + j) = tmpd;
 	}
+	tmpd = *(d + a);
+	*(d + a) = *(d + b);
+	*(d + b) = tmpd;
+	int tmpi = *(idx + a);
+	*(idx + a) = *(idx + b);
+	*(idx + b) = tmpi;
 }
 
 double quick_select(double *d, double *X, int *idx, int len, int k, int dim)
@@ -35,12 +39,10 @@ double quick_select(double *d, double *X, int *idx, int len, int k, int dim)
 	int i, st;
 	for (st = i = 0; i < len - 1; i++) {
 		if (d[i] > d[len - 1]) continue;
-		SWAP(d, idx, i, st);
-		SWAPX(X, dim, i, st);
+		SWAP(X, d, idx, dim, i, st);
 		st++;
 	}
-	SWAP(d, idx, len - 1, st);
-	SWAPX(X, dim, len - 1, st);
+	SWAP(X, d, idx, dim, len - 1, st);
 	return k == st ? d[st]
 		: st > k ? quick_select(d, X, idx, st, k, dim)
 		: quick_select(d + st, X + st * dim, idx + st, len - st, k - st, dim);

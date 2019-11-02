@@ -61,6 +61,7 @@ $(MAIN)_%: $(SRCDIR)/$(MAIN).c $(LIBDIR)/$(SRC)_%.a
 # the rule(a .cpp file) and $@: the name of the target of the rule (a .o file)
 
 $(LIBDIR)/$(SRC)_%.a: $(SRCDIR)/$(SRC)_%.o
+	mkdir -p $(LIBDIR)
 	ar rcs $@ $<
 
 # (see the gnu make manual section about automatic variables)
