@@ -2,14 +2,17 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include "sys/time.h"
 #include "vptree.h"
 
-#define DefaultNumPoints 100000
-#define DefaultDim 2
+#define DefaultNumPoints 1000000
+#define DefaultDim 20
 
 int nop = DefaultNumPoints;
 int dim = DefaultDim;
 _Bool matlab = 0;
+
+struct timeval startwtime, endwtime;
 
 void help(int argc, char *argv[]);
 void export_data(FILE *file, double *X);
@@ -23,26 +26,30 @@ int main(int argc, char *argv[])
 	srand((unsigned int)time(NULL));
 	FILE *data = NULL;
 	// Generate random point set
+	printf("Generating random data set.");
 	double *X = (double *)malloc(nop * dim * sizeof(double));
 	for (int i = 0; i < nop; i++) {
 		for (int j = 0; j < dim; j++)
 			*(X + i * dim + j) = ((double)rand() / (RAND_MAX));
 	}
+	printf("DONE!\n");
 	if (matlab) {
 		data = fopen("./data.m", "w");
 		export_data(data, X);
 	}
 	// Build search tree
-	time_t st_time, en_time;
-	st_time = clock();
+	printf("Building search tree.");
+	gettimeofday(&startwtime, NULL);
 	vptree *tree = buildvp(X, nop, dim);
-	en_time = clock();
+	gettimeofday(&endwtime, NULL);
+	double p_time = (double)((endwtime.tv_usec - startwtime.tv_usec) / 1.0e6 + endwtime.tv_sec - startwtime.tv_sec);
+	printf("DONE in %fsec!\n", p_time);
 
 	if (matlab) {
 		export_struct(data, tree, "tree", 5);
 		fclose(data);
 	}
-	printf("DONE in %lfseconds!\n", (double)((en_time - st_time) / CLOCKS_PER_SEC));
+	printf("Exiting\n");
 	free(X);
 	return 0;
 }

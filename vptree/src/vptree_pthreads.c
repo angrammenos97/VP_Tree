@@ -1,204 +1,230 @@
 #include "vptree.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <math.h>
+#include <pthread.h>
 
-#define SWAP(x, y) { double temp = *x; *x = *y; *y = temp; }
+#define BLOCK_SIZE 220000
+#define MAX_THREADS 20
 
-void swapPoints(double* array1, double* array2, int dim) {
-	double tmp;
-	int i;
+typedef struct {
+	double *X, *d; int n, dim, tid, nothd;
+}dflargs;
 
-	for (i = 0; i < dim; i++) {
-		tmp = array1[i];
-		array1[i] = array2[i];
-		array2[i] = tmp;
-	}
-}
+typedef struct {
+	double *X; vptree **tree; int *idx, n, dim;
+}vptargs;
 
-//calculates the distance between elements of the given part of the array assuming the last element is the vp and using the
-//index array as reference
-//validated
-double * calculateDist(int dim, int size, double arrayList[size][dim]) {
+/////////////////////////////////
+int nothvtp = 0;	// num of threads for vpt
+pthread_attr_t attr;
+pthread_mutex_t nothvtp_mutex;
 
-
-	double* dist = (double*)malloc((size - 1) * sizeof(double));
-	int i;
-
-	//using i to dereference index table and then access the original holder table of nxd
-	for (i = 0; i < size - 1; ++i) {
-		double distSqrd = 0.0;
-		int y;
-
-		//for loop to calculate distance for all dimensions
-		for (y = 0; y < dim; ++y) {
-			distSqrd += pow(arrayList[i][y] - arrayList[size - 1][y], 2);
-		}
-
-		dist[i] = sqrt(distSqrd);
-
-	}
-
-	return dist;
-}
-
-
-
-// Partition using Lomdto partition scheme and parallel update of the initial index table
-//validated
-double* partition(int size, int dim, int* a, double list[size][dim], double* inner, double* outer, double* pivotIndex)
+void *distance_from_last_threated(void *arg)
 {
-	// Pick pivotIndex as pivot from the array
-	double pivot = *pivotIndex;
-	int* pivotA = a + (pivotIndex - inner);
-	double(*pivotArray)[dim] = list + (pivotIndex - inner);
-
-	// Move pivot to end
-	SWAP(pivotIndex, outer);
-	SWAP(pivotA, (a + size - 1));
-	swapPoints(*pivotArray, *(list + size - 1), dim);
-
-	// elements less than pivot will be pushed to the inner of pIndex
-	// elements more than pivot will be pushed to the outer of pIndex
-	// equal elements can go either way
-	pivotIndex = inner;
-	pivotA = a;
-	pivotArray = list;
-
-	int i;
-
-	// each time we finds an element less than or equal to pivot, pIndex
-	// is incremented and that element would be placed before the pivot and index table is also updated.
-	for (i = 0; i < size - 1; i++)
-	{
-		if (inner[i] <= pivot)
-		{
-			SWAP((inner + i), pivotIndex);
-			SWAP((a + i), pivotA);
-			swapPoints(*(list + i), *pivotArray, dim);
-			pivotIndex++;
-			pivotA++;
-			pivotArray++;
-		}
+	dflargs *data = (dflargs*)arg;
+	if (data->n == 1)
+		exit(-1);
+	int block = (data->n - 1) / data->nothd;
+	if (data->tid == data->nothd - 1)
+		block += (data->n - 1) % data->nothd;		// the last thread maybe has extra work to do
+	for (int i = 0; i < block; i++) {
+		*(data->d + i) = 0.0;
+		for (int j = 0; j < data->dim; j++)
+			*(data->d + i) += pow(*(data->X + (data->tid * ((data->n - 1) / data->nothd) + i) * data->dim + j) - *(data->X + (data->n - 1) * data->dim + j), 2);
+		*(data->d + i) = sqrt(*(data->d + i));
 	}
-
-	// Move pivot to its final place
-	SWAP(pivotIndex, outer);
-	SWAP(pivotA, (a + size - 1));
-	swapPoints(*(pivotArray), *(list + size - 1), dim);
-
-	// return pIndex (index of pivot element)
-	return pivotIndex;
+	pthread_exit(NULL);
+	return 0;
 }
 
-// Returns the k-th smallest element of list within inner..outer
-// (i.e. inner <= k <= outer) while updating initial index table using lomdto partition
-//validated
-double* quickselect(int size, int dim, int* a, double list[size][dim], double* inner, double* outer, int k)
+void distance_from_last_sequential(double *X, double *d, int n, int dim)
 {
-	// If the array contains only one element, return that element
-	if (inner == outer)
-		return inner;
-
-	// select a pivotIndex between inner and outer
-	double*  pivotIndex = inner + (rand() % (outer - inner + 1));
-
-	pivotIndex = partition(outer - inner + 1, dim, a, list, inner, outer, pivotIndex);
-
-	// The pivot is in its final sorted position
-	if ((inner + k - 1) == pivotIndex)
-		return pivotIndex;
-
-	// if k is less than the pivot index
-	else if ((inner + k - 1) < pivotIndex)
-		return quickselect((pivotIndex - inner), dim, a, list, inner, pivotIndex - 1, k);
-
-	// if k is more than the pivot index
-	else
-		return quickselect(outer - pivotIndex, dim, a + (pivotIndex - inner) + 1, list + (pivotIndex - inner) + 1, pivotIndex + 1, outer, k - (pivotIndex - inner) - 1);
+	if (n == 1)
+		exit(-1);
+	for (int i = 0; i < n - 1; i++) {
+		*(d + i) = 0.0;
+		for (int j = 0; j < dim; j++)
+			*(d + i) += pow(*(X + i * dim + j) - *(X + (n - 1) * dim + j), 2);
+		*(d + i) = sqrt(*(d + i));
+	}
 }
 
+void SWAP(double *X, double *d, int *idx, int dim, int a, int b)
+{
+	double tmpd;
+	for (int j = 0; j < dim; j++) {
+		tmpd = *(X + a * dim + j);
+		*(X + a * dim + j) = *(X + b * dim + j);
+		*(X + b * dim + j) = tmpd;
+	}
+	tmpd = *(d + a);
+	*(d + a) = *(d + b);
+	*(d + b) = tmpd;
+	int tmpi = *(idx + a);
+	*(idx + a) = *(idx + b);
+	*(idx + b) = tmpi;
+}
 
-//finds the median value - median calculated as the first of the middle elements in case of even
-//# of elements - and returns that value while having rearranged the index table properly for further use in recursion
-//validated
-double findMedian(int dim, int size, double arrayList[size][dim], int index[size]) {
+double quick_select(double *d, double *X, int *idx, int len, int k, int dim)
+{
+	int i, st;
+	for (st = i = 0; i < len - 1; i++) {
+		if (d[i] > d[len - 1]) continue;
+		SWAP(X, d, idx, dim, i, st);
+		st++;
+	}
+	SWAP(X, d, idx, dim, len - 1, st);
+	return k == st ? d[st]
+		: st > k ? quick_select(d, X, idx, st, k, dim)
+		: quick_select(d + st, X + st * dim, idx + st, len - st, k - st, dim);
+}
 
-	//checks whether table has only one element
-	if (size == 1)
+double median(double *X, int *idx, int n, int dim)
+{
+	if (n == 1)
 		return 0.0;
+	double *d = (double*)malloc((n - 1) * sizeof(double));
+	int nothd = (int)((n * dim) / (BLOCK_SIZE * nothvtp)) + 1; // plus 1 to do it sequential for small nop
+	if (nothd == 1)
+		distance_from_last_sequential(X, d, n, dim);
+	else {
+		pthread_t *thread = (pthread_t*)malloc(nothd * sizeof(pthread_t));
+		dflargs *arg = (dflargs*)malloc(nothd * sizeof(dflargs));
 
-	//calculates median and updates index table
-	double* dist = calculateDist(dim, size, arrayList);
-	double md = *quickselect(size - 1, dim, index, arrayList, dist, dist + (size - 2), (size - 1) / 2);
-
+		for (int t = 0; t < nothd; t++) {
+			(arg + t)->X = X;		(arg + t)->d = (d + t * ((n - 1) / nothd));
+			(arg + t)->n = n;		(arg + t)->dim = dim;		(arg + t)->tid = t;		(arg + t)->nothd = nothd;
+			pthread_create(&thread[t], &attr, distance_from_last_threated, (void*)(arg + t));
+		}
+		for (int t = 0; t < nothd; t++)
+			if (pthread_join(thread[t], NULL))
+				printf("ERROR joining dist thread%i\n", (arg + t)->tid);
+		free(thread);
+	}
+	double md = quick_select(d, X, idx, (n - 1), (n - 2) / 2, dim);
+	free(d);
 	return md;
 }
 
-
-//creates Vptree assuming vp is the last element in index and calls recursively until
-//there are no points inner
-//validated
-vptree * createVpTree(int dim, int size, int index[size], double list[size][dim]) {
-
-	if (size == 0)
+vptree *vpt_sequential(double *X, int *idx, int n, int dim)
+{
+	//printf("seqeuntial %i with %i threads\n", n, nothvtp);
+	if (n == 0)
 		return NULL;
-
-	vptree* node = (vptree*)malloc(sizeof(vptree));
-	node->idx = index[size - 1];
-	node->vp = list[size - 1];
-	node->md = findMedian(dim, size, list, index);
-
-	//calls recursively taking into consideration whether size is
-	//odd or even number
-	if (size % 2 != 0) {
-		node->inner = createVpTree(dim, (size - 1) / 2, index, list);
-		node->outer = createVpTree(dim, (size - 1) / 2, index + (size - 1) / 2, list + (size - 1) / 2);
+	vptree *tree = (vptree*)malloc(sizeof(vptree));
+	tree->vp = (X + (n - 1) * dim);
+	tree->md = median(X, idx, n, dim);
+	tree->idx = *(idx + n - 1);
+	// split and recurse
+	if ((n - 1) % 2 == 0) {
+		tree->inner = vpt_sequential(X, idx, (n - 1) / 2, dim);
+		tree->outer = vpt_sequential((X + ((n - 1) / 2)*dim), (idx + (n - 1) / 2), (n - 1) / 2, dim);
 	}
 	else {
-		node->inner = createVpTree(dim, (size - 1) / 2 + 1, index, list);
-		node->outer = createVpTree(dim, (size - 1) / 2, index + (size - 1) / 2 + 1, list + (size - 1) / 2 + 1);
+		tree->inner = vpt_sequential(X, idx, (n - 1) / 2 + 1, dim);
+		tree->outer = vpt_sequential((X + ((n - 1) / 2 + 1)*dim), (idx + (n - 1) / 2 + 1), (n - 1) / 2, dim);
 	}
-
-	return node;
+	return tree;
 }
 
-//prints VpTree with reference to its nodes
-void printTree(vptree* node, int* counter) {
-
-	if (node == NULL) {
-		printf("\n");
-		return;
+void *vpt_threaded(void *arg)
+{
+	vptargs *data = (vptargs*)arg;
+	//printf("threaded %i\n", data->n);
+	if (data->n == 0) {
+		*(data->tree) = NULL;
+		return 0;
 	}
-	(*counter)++;
-	int temp = *counter;
-	printf("printing inner->%d \n", temp);
-	printTree(node->inner, counter);
+	pthread_mutex_lock(&nothvtp_mutex);
+	nothvtp++;	// one more thread created
+	pthread_mutex_unlock(&nothvtp_mutex);
+	vptree *node = (vptree*)malloc(sizeof(vptree));
+	node->vp = (data->X + (data->n - 1) * data->dim);
+	node->md = median(data->X, data->idx, data->n, data->dim);
+	node->idx = *(data->idx + data->n - 1);
+	*(data->tree) = node;
+	// split and recurse
+	vptargs vptargI, vptargO;
+	vptargI.tree = &(node->inner);
+	vptargO.tree = &(node->outer);
+	vptargI.X = data->X;
+	vptargI.idx = data->idx;
+	vptargI.dim = vptargO.dim = data->dim;
+	if ((data->n - 1) % 2 == 0) {
+		vptargI.n = (data->n - 1) / 2;
+		vptargO.X = (data->X + ((data->n - 1) / 2)*data->dim);
+		vptargO.idx = (data->idx + (data->n - 1) / 2);
+		vptargO.n = (data->n - 1) / 2;
+	}
+	else {
+		vptargI.n = (data->n - 1) / 2 + 1;
+		vptargO.X = (data->X + ((data->n - 1) / 2 + 1)*data->dim);
+		vptargO.idx = (data->idx + (data->n - 1) / 2 + 1);
+		vptargO.n = (data->n - 1) / 2;
+	}
+	//int nothdlf = ((data->n / 2) * dim) / (BLOCK_SIZE * nothvtp);
+	if (nothvtp > MAX_THREADS || (data->n / 2) * data->dim < BLOCK_SIZE) {	// take this job too
+		node->inner = vpt_sequential(vptargI.X, vptargI.idx, vptargI.n, vptargI.dim);
+		node->outer = vpt_sequential(vptargO.X, vptargO.idx, vptargO.n, vptargO.dim);
+	}
+	else {		// create new thread
+		pthread_t thread;
+		if (pthread_create(&thread, &attr, vpt_threaded, (void*)&vptargO)) {
+			printf("ERROR: creating vpt thread");
+			exit(-1);
+		}
+		vpt_threaded((void*)&vptargI);
+		if (pthread_join(thread, NULL)) {
+			printf("ERROR: joining vpt thread\n");
+			exit(-1);
+		}
+	}
 
-	printf("%lf %lf %lf ->%d\n", (node->vp)[0], (node->vp)[1], (node->vp)[2], temp);
+	pthread_mutex_lock(&nothvtp_mutex);
+	nothvtp--;	// one more thread destroyed
+	pthread_mutex_unlock(&nothvtp_mutex);
 
-	printf("printing outer->%d\n", temp);
-	printTree(node->outer, counter);
+	pthread_exit(NULL);
+	return 0;
 }
+/////////////////////////////////
 
-//function written only to meet the header criteria of the project
-//thus simply making use of createVpTree plus creating the index table
-//validated
-vptree* buildvp(double* X, int n, int d) {
-
-	double* list = (double*)malloc(sizeof(double)*n*d);
-	memcpy(list, X, sizeof(double)*n*d);
-
-
-	int* index = (int*)malloc(sizeof(int)*n);
-	int i;
-	for (i = 0; i < n; ++i) {
-		index[i] = i;
+vptree * buildvp(double *X, int n, int d)
+{
+	double *X_copy = (double*)malloc(n * d * sizeof(double));
+	int *idx = (int*)malloc(n * sizeof(int));
+	for (int i = 0; i < n; i++) {
+		*(idx + i) = i;
+		for (int j = 0; j < d; j++)
+			*(X_copy + i * d + j) = *(X + i * d + j);
 	}
 
-	vptree* root = createVpTree(d, n, index, (double**)list);
-	return root;
+	pthread_t rthread;
+	pthread_attr_init(&attr);
+	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
+	pthread_mutex_init(&nothvtp_mutex, NULL);
+
+	vptree *tree = NULL;
+	vptargs root;
+	root.X = X_copy;
+	root.tree = &tree;
+	root.idx = idx;
+	root.n = n;
+	root.dim = d;
+	if (pthread_create(&rthread, &attr, vpt_threaded, (void*)&root)) {
+		printf("ERROR: creating vpt thread");
+		exit(-1);
+	}
+	if (pthread_join(rthread, NULL)) {
+		printf("ERROR: joining vpt thread\n");
+		exit(-1);
+	}
+	//vpt_sequential(X_copy, root, idx, n, d);
+
+	pthread_attr_destroy(&attr);
+	pthread_mutex_destroy(&nothvtp_mutex);
+	return tree;
 }
 
 vptree * getInner(vptree * T)
@@ -221,3 +247,4 @@ int getIDX(vptree * T)
 {
 	return T->idx;
 }
+
