@@ -4,9 +4,9 @@
 #include <math.h>
 #include <omp.h>
 
-#define LEVEL 5
+#define LEVEL 4
 #define NUM_OF_THREADS 2
-#define CHUNK_SIZE 200000
+#define CHUNK_SIZE 2000000
 
 /////////////////////////////////
 double *distance_from_last_seqeuntial(double *X, int n, int dim)
