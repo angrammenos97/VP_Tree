@@ -88,7 +88,8 @@ vptree * buildvp(double *X, int n, int d)
 		for (int j = 0; j < d; j++)
 			*(X_copy + i * d + j) = *(X + i * d + j);
 	}
-	return vpt(X_copy, idx, n, d);
+	vptree *root = vpt(X_copy, idx, n, d);
+	return root;
 }
 
 vptree * getInner(vptree * T)

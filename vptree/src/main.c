@@ -25,30 +25,49 @@ int main(int argc, char *argv[])
 
 	srand((unsigned int)time(NULL));
 	FILE *data = NULL;
+
 	// Generate random point set
-	printf("Generating random data set.");
+	printf("Generating random data set. ");
+	gettimeofday(&startwtime, NULL);
 	double *X = (double *)malloc(nop * dim * sizeof(double));
 	for (int i = 0; i < nop; i++) {
 		for (int j = 0; j < dim; j++)
 			*(X + i * dim + j) = ((double)rand() / (RAND_MAX));
 	}
-	printf("DONE!\n");
-	if (matlab) {
-		data = fopen("./data.m", "w");
-		export_data(data, X);
-	}
-	// Build search tree
-	printf("Building search tree.");
-	gettimeofday(&startwtime, NULL);
-	vptree *tree = buildvp(X, nop, dim);
 	gettimeofday(&endwtime, NULL);
 	double p_time = (double)((endwtime.tv_usec - startwtime.tv_usec) / 1.0e6 + endwtime.tv_sec - startwtime.tv_sec);
 	printf("DONE in %fsec!\n", p_time);
 
 	if (matlab) {
+		printf("Writting data set to data.m. ");
+		gettimeofday(&startwtime, NULL);
+		data = fopen("./data.m", "w");
+		export_data(data, X);
+		fclose(data);
+		gettimeofday(&endwtime, NULL);
+		p_time = (double)((endwtime.tv_usec - startwtime.tv_usec) / 1.0e6 + endwtime.tv_sec - startwtime.tv_sec);
+		printf("DONE in %fsec!\n", p_time);
+	}
+
+	// Build search tree
+	printf("Building search tree. ");
+	gettimeofday(&startwtime, NULL);
+	vptree *tree = buildvp(X, nop, dim);
+	gettimeofday(&endwtime, NULL);
+	p_time = (double)((endwtime.tv_usec - startwtime.tv_usec) / 1.0e6 + endwtime.tv_sec - startwtime.tv_sec);
+	printf("DONE in %fsec!\n", p_time);
+
+	if (matlab) {
+		printf("Appending tree to data.m ");
+		gettimeofday(&startwtime, NULL);
+		data = fopen("./data.m", "a");
 		export_struct(data, tree, "tree", 5);
 		fclose(data);
+		gettimeofday(&endwtime, NULL);
+		p_time = (double)((endwtime.tv_usec - startwtime.tv_usec) / 1.0e6 + endwtime.tv_sec - startwtime.tv_sec);
+		printf("DONE in %fsec!\n", p_time);
 	}
+
 	printf("Exiting\n");
 	free(X);
 	return 0;
@@ -123,4 +142,3 @@ void export_struct(FILE *file, vptree *root, const char *root_name, int str_size
 		export_struct(file, getOuter(root), tmpo, str_size + 6);
 	}
 }
-

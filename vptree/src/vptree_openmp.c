@@ -160,10 +160,12 @@ vptree * buildvp(double *X, int n, int d)
 			*(X_copy + i * d + j) = *(X + i * d + j);
 	}
 
+	vptree *root;
 	omp_set_dynamic(0);
 	omp_set_nested(1);
+	root = vpt_openmp(X_copy, idx, n, d);
 
-	return vpt_openmp(X_copy, idx, n, d);
+	return root;
 }
 
 vptree * getInner(vptree * T)

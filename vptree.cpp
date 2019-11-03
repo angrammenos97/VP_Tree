@@ -117,7 +117,7 @@ vptree *vpt_openmp(double *X, int *idx, int n, int dim)
 	tree->md = median(X, idx, n, dim);
 	tree->idx = *(idx + n - 1);
 	// split and recurse
-	if (true) {
+	
 #pragma omp parallel num_threads(2)\
      shared(X,idx,tree,n,dim)
 	{
@@ -137,17 +137,6 @@ vptree *vpt_openmp(double *X, int *idx, int n, int dim)
 			tree->inner = vpt_openmp(X, idx, (n - 1) / 2 + 1, dim);
 		}
 	}
-	}
-	else {
-		if ((n - 1) % 2 == 0) {
-			tree->inner = vpt_seqeuntial(X, idx, (n - 1) / 2, dim);
-			tree->outer = vpt_seqeuntial((X + ((n - 1) / 2)*dim), (idx + (n - 1) / 2), (n - 1) / 2, dim);
-		}
-		else {
-			tree->inner = vpt_seqeuntial(X, idx, (n - 1) / 2 + 1, dim);
-			tree->outer = vpt_seqeuntial((X + ((n - 1) / 2 + 1)*dim), (idx + (n - 1) / 2 + 1), (n - 1) / 2, dim);
-		}
-	}
 	return tree;
 }
 /////////////////////////////////
@@ -162,10 +151,12 @@ vptree * buildvp(double *X, int n, int d)
 			*(X_copy + i * d + j) = *(X + i * d + j);
 	}
 
+	vptree *root;
 	omp_set_dynamic(0);
 	omp_set_nested(1);
+	root = vpt_openmp(X_copy, idx, n, d);
 
-	return vpt_openmp(X_copy, idx, n, d);
+	return root;
 }
 
 vptree * getInner(vptree * T)
