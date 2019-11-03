@@ -27,7 +27,7 @@ LIBDIR = lib
 MATDIR = matlab
 
 # define compile-time flags
-CFLAGS = -O3 -fcilkplus -fopenmp -lpthread -Wall
+CFLAGS = -fcilkplus -fopenmp -lpthread -Wall
 
 # define any directories containing header files
 INCLUDES = -I $(INCDIR)
